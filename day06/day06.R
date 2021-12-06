@@ -31,7 +31,7 @@ pop = c(0, table(input), 0, 0, 0)
 names(pop) = 0:8
 
 for(i in 1:256) {
-  pop[7+1] = pop[7+1] + pop[1]
+  pop[7+1] = pop[7+1] + pop[0+1]
   pop = c(pop[-1], pop[1])
 }
 formatC(sum(pop), digits = 16)
