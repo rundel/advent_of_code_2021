@@ -112,8 +112,7 @@ find_intersect = function(x, y) {
     return(list())
   }
   if (length(sub1) != length(sub2)) {
-    print("Oops")
-    return(list())
+    return(list("Sub mismatch"))
   }
   
   
@@ -123,7 +122,7 @@ find_intersect = function(x, y) {
   rot_i = map_lgl(checks, ~!is.null(.x)) %>% which()
   
   if (length(rot_i) == 0)
-    return(list())
+    return(list("Check failure"))
   
   offset =  checks[[rot_i]]
     
@@ -147,6 +146,7 @@ find_paths = function(pairs) {
     igraph::graph_from_data_frame(directed=FALSE)
   
   igraph::shortest_paths(g, from = "1")$vpath %>%
+    map(names) %>%
     map(as.integer)
 }
 
@@ -157,18 +157,17 @@ f = function(x) {
     j = seq_along(x)
   ) %>%
     as_tibble() %>%
-    filter(j > i) %>%
+    filter(j != i) %>%
     arrange(i,j)
     
-  
-  pairs$res = pmap(pairs, ~ {cat(.x,.y,"\n");find_intersect(x[[.x]], x[[.y]])})
+  pairs$res = pmap(pairs, ~ {find_intersect(x[[.x]], x[[.y]])})
 
   pairs = pairs %>%
-    filter(map_int(res, length) != 0)
+    filter(map_int(res, length) > 1)
   
   paths = find_paths(pairs)[-1] # Ignore 1 -> 1
   
-  final = x[1:2]
+  final = x
   for(path in paths) {
     path = rev(path)
     
@@ -176,58 +175,14 @@ f = function(x) {
     prev = path[1]
     for(cur in path[-1]) {
       res = pairs %>%
-        filter((i == prev & j == cur) | (i == cur & j == prev)) %>%
+        filter(i == cur & j == prev) %>%
           pull(res) %>%
           .[[1]]
         
-        final[[cur]] = correct(final[[cur]], rot_mats[[res$rot_i]], res$offset)
+        final[[start]] = correct(final[[start]], rot_mats[[res$rot_i]], res$offset)
       
       prev = cur
     }
-    
-    break
-  }
-  
-  
-  
-  step1 = pairs %>%
-    filter(
-      i == 1, map_int(res, length)  != 0
-    ) %>%
-    pull(j)
-  
-  missing = setdiff(pull(pairs, j), step1)
-  
-  final = x
-  for(cur in step1) { # Pairs that include Probe 1
-    res = pairs %>%
-      filter(i == 1, j == cur) %>%
-      pull(res) %>%
-      .[[1]]
-    
-    final[[cur]] = correct(final[[cur]], rot_mats[[res$rot_i]], res$offset)
-  }
-  
-  for(cur in missing) { # Probes that dont pair with probe 1
-    con = pairs %>%
-      filter(j == cur, map_int(res, length)  != 0) %>%
-      slice(1) 
-    
-    res = con %>%
-      pull(res) %>%
-      .[[1]]
-    
-    con_i = con %>%
-      pull(i)
-    
-    final[[cur]] = correct(final[[cur]], rot_mats[[res$rot_i]], res$offset)
-    
-    res = pairs %>%
-      filter(i == 1, j == con_i) %>%
-      pull(res) %>%
-      .[[1]]
-    
-    final[[cur]] = correct(final[[cur]], rot_mats[[res$rot_i]], res$offset)
   }
   
   do.call(rbind, final) %>%
@@ -236,5 +191,56 @@ f = function(x) {
   
 }
 
-#f(test)
+f(test)
 f(input)
+
+
+## Task 2
+
+g = function(x) {
+  pairs = expand.grid(
+    i = seq_along(x),
+    j = seq_along(x)
+  ) %>%
+    as_tibble() %>%
+    filter(j != i) %>%
+    arrange(i,j)
+  
+  pairs$res = pmap(pairs, ~ {find_intersect(x[[.x]], x[[.y]])})
+  
+  pairs = pairs %>%
+    filter(map_int(res, length) > 1)
+  
+  paths = find_paths(pairs)[-1] # Ignore 1 -> 1
+  
+  final = list(matrix(c(0,0,0), nrow=1))
+  for(path in paths) {
+    path = rev(path)
+    
+    start = path[1]
+    prev = path[1]
+    final[[start]] = matrix(c(0,0,0), nrow=1)
+    
+    for(cur in path[-1]) {
+      res = pairs %>%
+        filter(i == cur & j == prev) %>%
+        pull(res) %>%
+        .[[1]]
+      
+      final[[start]] = correct(final[[start]], rot_mats[[res$rot_i]], res$offset)
+      prev = cur
+    }
+  }
+ 
+  final 
+}
+
+g(test) %>%
+  do.call(rbind, .) %>%
+  dist(method = "manhattan") %>%
+  max()
+
+g(input) %>%
+  do.call(rbind, .) %>%
+  dist(method = "manhattan") %>%
+  max()
