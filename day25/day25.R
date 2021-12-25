@@ -15,9 +15,6 @@ input = read_data(here::here("day25/input.txt"))
 ## Task 1
 
 f = function(x) {
-  
-  x = test
-  
   n = 0
   repeat {
     
@@ -64,7 +61,7 @@ f = function(x) {
 f(test)
 f(input)
   
-  ## Task 2
+## Task 2
   
   
   
